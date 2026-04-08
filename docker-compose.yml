@@ -1,0 +1,36 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: quickbasket-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo:/data/db
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postdb
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n
+    container_name: testN8N
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  n8n_data:
