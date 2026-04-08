@@ -1,143 +1,144 @@
 # 🛒 QuickBasket
 
-> WhatsApp store ordering system with n8n automation, PostgreSQL, MongoDB, and PDF generation
+WhatsApp store ordering system with n8n automation, PostgreSQL, MongoDB, and PDF generation
 
 ---
 
-## 📸 Preview
+## What is QuickBasket?
 
-### Chat View 1
-
-![WhatsApp Chat 2](https://raw.githubusercontent.com/nayaksomkar/QuickBasket/main/images/whatsapp_chat_image_2.png)
-
-### Chat View 2
-
-![WhatsApp Chat 1](https://raw.githubusercontent.com/nayaksomkar/QuickBasket/main/images/whatsapp_chat_image_1.png)
+QuickBasket is a WhatsApp-based ordering system where customers can browse products, add items to cart, and place orders - all through WhatsApp chat.
 
 ---
 
-## 🏗️ Architecture
+## Preview
+
+<table align="center">
+<tr>
+<td align="center"><img src="https://github.com/nayaksomkar/QuickBasket/raw/main/images/whatsapp_chat_image_2.png" width="350"/></td>
+<td align="center"><img src="https://github.com/nayaksomkar/QuickBasket/raw/main/images/whatsapp_chat_image_1.png" width="350"/></td>
+</tr>
+</table>
+
+---
+
+## Architecture
 
 ```
-User → WhatsApp → n8n (AI Agent) → PostgreSQL/MongoDB
-                     ↓
-               PDF Generation
+User → WhatsApp → n8n → AI Agent → Database → PDF
 ```
 
 ---
 
-## 🐳 Docker Services
+## n8n Workflow
 
-| Service   | Port  | Description          |
-|-----------|-------|----------------------|
-| `mongo`   | 27017 | MongoDB database     |
-| `postgres`| 5432  | PostgreSQL database  |
-| `n8n`     | 5678  | Workflow automation  |
+```
+WhatsApp Trigger → AI Agent → Memory → WhatsApp Reply
+```
+
+### Intent Flow
+
+```
+User Message → Parse Intent
+     |
+     ▼
+add/remove/confirm/noaction
+```
 
 ---
 
-## ⚙️ n8n Workflow
+## Docker Services
 
-```
-WhatsApp Trigger → AI Agent (LangChain) → Simple Memory → WhatsApp Send
-```
-
-### Intent Types
-
-| Intent    | Action                          |
-|-----------|--------------------------------|
-| `add`     | Add items to order              |
-| `remove`  | Remove items from order         |
-| `confirm` | Confirm and place order         |
-| `noaction`| No action needed                |
+| Service | Port | Purpose |
+|---------|------|---------|
+| mongo | 27017 | NoSQL database |
+| postgres | 5432 | SQL database |
+| n8n | 5678 | Automation |
 
 ---
 
-## 🚀 Quick Start
+## Database
+
+### PostgreSQL
+- products (name, price)
+- temporary_order (order details)
+
+### MongoDB
+- chat_logs
+- order_logs
+
+---
+
+## Quick Start
 
 ```bash
-# 1. Create virtual environment
+# Setup
 python -m venv venv
-
-# 2. Activate
 venv\Scripts\activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Copy environment file
+# Config
 copy .env.example .env
 
-# 5. Start Docker
+# Run
 docker-compose up -d
-
-# 6. Initialize databases
 python initDB.py
-
-# 7. Import n8n workflow
-# Open http://localhost:5678
-# Import: workflows/QuickBasket.n8n.json
-
-# 8. Run PDF server
 python -m uvicorn PDFserver:app --port 8001
 ```
 
 ---
 
-## 🗄️ Database
-
-### PostgreSQL (`quickbasket`)
-- `products` (name, price)
-- `temporary_order` (order details)
-
-### MongoDB (`quickbasket`)
-- `chat_logs`
-- `order_logs`
-
----
-
-## 📁 Project Structure
+## Project Files
 
 ```
-QuickBasket/
-├── config.py              # Configuration
-├── initDB.py              # Initialize databases
-├── initPost.py            # PostgreSQL setup
-├── initMongo.py           # MongoDB setup
-├── PDFserver.py           # PDF server
-├── botINS.txt             # Bot instructions
-├── products.csv          # Products list
-├── requirements.txt       # Dependencies
-├── docker-compose.yml    # Docker services
-├── .env.example          # Env template
-├── workflows/             # n8n workflow
-├── images/               # Images
-├── OrderPDF/             # Generated PDFs
-└── mongo/                # MongoDB data
+config.py      - Configuration
+initDB.py     - Initialize databases
+initPost.py   - PostgreSQL setup
+initMongo.py  - MongoDB setup
+PDFserver.py  - PDF generation
+botINS.txt    - Bot instructions
+products.csv  - Products list
+requirements.txt
+docker-compose.yml
+workflows/    - n8n workflows
+images/       - Preview images
+OrderPDF/     - Generated PDFs
 ```
 
 ---
 
-## 🔌 API
+## API
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/generate-pdf` | POST | Generate PDF |
+POST /generate-pdf - Generate order PDF
 
 ---
 
-## ⚡ Tech Stack
+## Tech Stack
 
-- **Backend**: FastAPI, uvicorn
-- **Database**: PostgreSQL, MongoDB
-- **Automation**: n8n (LangChain AI)
-- **PDF**: ReportLab
+FastAPI, uvicorn, PostgreSQL, MongoDB, n8n (LangChain AI), ReportLab, Docker
 
 ---
 
-## 🔧 Config
+## Bot Intents
 
-```env
+| Intent | Action |
+|--------|--------|
+| add | Add to cart |
+| remove | Remove from cart |
+| confirm | Confirm order |
+| noaction | No action needed |
+
+---
+
+## Products
+
+20 products: snacks & ice creams. See products.csv
+
+---
+
+## Config
+
+Create .env:
+```
 POSTGRES_PASSWORD=your_password
 WEBHOOK_URL=https://your-ngrok-url.ngrok-free.dev
 ```
