@@ -4,6 +4,18 @@
 
 ---
 
+## 📸 Preview
+
+### Chat View 1
+
+![WhatsApp Chat 2](https://raw.githubusercontent.com/nayaksomkar/QuickBasket/main/images/whatsapp_chat_image_2.png)
+
+### Chat View 2
+
+![WhatsApp Chat 1](https://raw.githubusercontent.com/nayaksomkar/QuickBasket/main/images/whatsapp_chat_image_1.png)
+
+---
+
 ## 🏗️ Architecture
 
 ```
@@ -26,28 +38,12 @@ User → WhatsApp → n8n (AI Agent) → PostgreSQL/MongoDB
 
 ## ⚙️ n8n Workflow
 
-The n8n workflow handles all WhatsApp messages:
-
 ```
-┌─────────────────────┐
-│  WhatsApp Trigger   │  ← Receives message from user
-└──────────┬──────────┘
-           ↓
-┌─────────────────────┐
-│     AI Agent        │  ← Processes with bot instructions
-│   (LangChain)       │    - add, remove, confirm, noaction
-└──────────┬──────────┘
-           ↓
-┌─────────────────────┐
-│   Simple Memory     │  ← Keeps conversation history
-└──────────┬──────────┘
-           ↓
-┌─────────────────────┐
-│   WhatsApp Node     │  ← Sends reply to user
-└─────────────────────┘
+WhatsApp Trigger → AI Agent (LangChain) → Simple Memory → WhatsApp Send
 ```
 
 ### Intent Types
+
 | Intent    | Action                          |
 |-----------|--------------------------------|
 | `add`     | Add items to order              |
@@ -71,7 +67,6 @@ pip install -r requirements.txt
 
 # 4. Copy environment file
 copy .env.example .env
-# Edit .env with your values
 
 # 5. Start Docker
 docker-compose up -d
@@ -79,82 +74,69 @@ docker-compose up -d
 # 6. Initialize databases
 python initDB.py
 
-# 7. Start n8n
-docker-compose up -d n8n
+# 7. Import n8n workflow
+# Open http://localhost:5678
+# Import: workflows/QuickBasket.n8n.json
 
-# 8. Import workflow
-# Open n8n at http://localhost:5678
-# Import workflows/QuickBasket.n8n.json
-
-# 9. Run PDF server
+# 8. Run PDF server
 python -m uvicorn PDFserver:app --port 8001
 ```
 
 ---
 
-## 🗄️ Database Initialization
-
-```bash
-python initDB.py         # Both PostgreSQL + MongoDB
-python initPost.py       # PostgreSQL only
-python initMongo.py      # MongoDB only
-```
+## 🗄️ Database
 
 ### PostgreSQL (`quickbasket`)
-| Table | Columns |
-|-------|---------|
-| `products` | name, price |
-| `temporary_order` | order_id, order_item, order_quantity, order_price, price_item |
+- `products` (name, price)
+- `temporary_order` (order details)
 
 ### MongoDB (`quickbasket`)
-| Collection | Purpose |
-|------------|---------|
-| `chat_logs` | Chat messages |
-| `order_logs` | Order history |
+- `chat_logs`
+- `order_logs`
 
 ---
 
-## 📁 Project Files
+## 📁 Project Structure
 
 ```
 QuickBasket/
-├── config.py              # Configuration (loads from .env)
-├── initDB.py              # Initialize both databases
-├── initPost.py           # Initialize PostgreSQL
-├── initMongo.py          # Initialize MongoDB
-├── PDFserver.py           # PDF generation server
-├── botINS.txt            # Bot instructions for AI
+├── config.py              # Configuration
+├── initDB.py              # Initialize databases
+├── initPost.py            # PostgreSQL setup
+├── initMongo.py           # MongoDB setup
+├── PDFserver.py           # PDF server
+├── botINS.txt             # Bot instructions
 ├── products.csv          # Products list
-├── requirements.txt      # Python dependencies
+├── requirements.txt       # Dependencies
 ├── docker-compose.yml    # Docker services
-├── .env.example          # Environment template
-├── .env                  # Your environment variables
-├── workflows/
-│   └── QuickBasket.n8n.json  # n8n workflow
+├── .env.example          # Env template
+├── workflows/             # n8n workflow
+├── images/               # Images
 ├── OrderPDF/             # Generated PDFs
-└── README.md
+└── mongo/                # MongoDB data
 ```
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 API
 
-### PDF Server (port 8001)
-- `POST /generate-pdf` - Generate order PDF
-
----
-
-## 📋 Requirements
-
-- Python 3.11+
-- Docker & Docker Compose
-- PostgreSQL, MongoDB, n8n (via Docker)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/generate-pdf` | POST | Generate PDF |
 
 ---
 
-## 🔧 Configuration
+## ⚡ Tech Stack
 
-Edit `.env` file:
+- **Backend**: FastAPI, uvicorn
+- **Database**: PostgreSQL, MongoDB
+- **Automation**: n8n (LangChain AI)
+- **PDF**: ReportLab
+
+---
+
+## 🔧 Config
+
 ```env
 POSTGRES_PASSWORD=your_password
 WEBHOOK_URL=https://your-ngrok-url.ngrok-free.dev
