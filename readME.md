@@ -1,33 +1,15 @@
 # 🛒 QuickBasket
 
-> WhatsApp-based store ordering system
+> WhatsApp store ordering system with n8n automation, PostgreSQL, MongoDB, and PDF generation
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Architecture
 
-```bash
-# 1. Create virtual environment
-python -m venv venv
-
-# 2. Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# 3. Install dependencies
-pip install psycopg2-binary pymongo reportlab fastapi uvicorn
-
-# 4. Start Docker
-docker-compose up -d
-
-# 5. Initialize databases
-python initDB.py
-# Options: "yes" to drop/recreate, "no" to keep existing
-
-# 6. Run PDF server
-python -m uvicorn PDFserver:app --host 0.0.0.0 --port 8001
+```
+User → WhatsApp → n8n (AI Agent) → PostgreSQL/MongoDB
+                     ↓
+               PDF Generation
 ```
 
 ---
@@ -42,38 +24,89 @@ python -m uvicorn PDFserver:app --host 0.0.0.0 --port 8001
 
 ---
 
-## 🗄️ Database Initialization
+## ⚙️ n8n Workflow
 
-### Single Command
-```bash
-python initDB.py
+The n8n workflow handles all WhatsApp messages:
+
 ```
-Initializes **both** PostgreSQL and MongoDB databases.
-
-### Separate Commands
-```bash
-python initPost.py   # PostgreSQL only
-python initMongo.py  # MongoDB only
+┌─────────────────────┐
+│  WhatsApp Trigger   │  ← Receives message from user
+└──────────┬──────────┘
+           ↓
+┌─────────────────────┐
+│     AI Agent        │  ← Processes with bot instructions
+│   (LangChain)       │    - add, remove, confirm, noaction
+└──────────┬──────────┘
+           ↓
+┌─────────────────────┐
+│   Simple Memory     │  ← Keeps conversation history
+└──────────┬──────────┘
+           ↓
+┌─────────────────────┐
+│   WhatsApp Node     │  ← Sends reply to user
+└─────────────────────┘
 ```
 
-Each script asks: `Drop and recreate? (yes/no)`
-
-- **yes** = drops existing and creates fresh
-- **no** = creates only if doesn't exist
+### Intent Types
+| Intent    | Action                          |
+|-----------|--------------------------------|
+| `add`     | Add items to order              |
+| `remove`  | Remove items from order         |
+| `confirm` | Confirm and place order         |
+| `noaction`| No action needed                |
 
 ---
 
-## Database Structure
+## 🚀 Quick Start
+
+```bash
+# 1. Create virtual environment
+python -m venv venv
+
+# 2. Activate
+venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Copy environment file
+copy .env.example .env
+# Edit .env with your values
+
+# 5. Start Docker
+docker-compose up -d
+
+# 6. Initialize databases
+python initDB.py
+
+# 7. Start n8n
+docker-compose up -d n8n
+
+# 8. Import workflow
+# Open n8n at http://localhost:5678
+# Import workflows/QuickBasket.n8n.json
+
+# 9. Run PDF server
+python -m uvicorn PDFserver:app --port 8001
+```
+
+---
+
+## 🗄️ Database Initialization
+
+```bash
+python initDB.py         # Both PostgreSQL + MongoDB
+python initPost.py       # PostgreSQL only
+python initMongo.py      # MongoDB only
+```
 
 ### PostgreSQL (`quickbasket`)
-
 | Table | Columns |
 |-------|---------|
 | `products` | name, price |
 | `temporary_order` | order_id, order_item, order_quantity, order_price, price_item |
 
 ### MongoDB (`quickbasket`)
-
 | Collection | Purpose |
 |------------|---------|
 | `chat_logs` | Chat messages |
@@ -83,16 +116,24 @@ Each script asks: `Drop and recreate? (yes/no)`
 
 ## 📁 Project Files
 
-| File | Description |
-|------|-------------|
-| `config.py` | All configuration variables |
-| `initDB.py` | Initialize PostgreSQL + MongoDB |
-| `initPost.py` | Initialize PostgreSQL only |
-| `initMongo.py` | Initialize MongoDB only |
-| `PDFserver.py` | FastAPI server (PDF generation) |
-| `botINS.txt` | Bot instructions |
-| `products.csv` | Products list |
-| `docker-compose.yml` | Docker services |
+```
+QuickBasket/
+├── config.py              # Configuration (loads from .env)
+├── initDB.py              # Initialize both databases
+├── initPost.py           # Initialize PostgreSQL
+├── initMongo.py          # Initialize MongoDB
+├── PDFserver.py           # PDF generation server
+├── botINS.txt            # Bot instructions for AI
+├── products.csv          # Products list
+├── requirements.txt      # Python dependencies
+├── docker-compose.yml    # Docker services
+├── .env.example          # Environment template
+├── .env                  # Your environment variables
+├── workflows/
+│   └── QuickBasket.n8n.json  # n8n workflow
+├── OrderPDF/             # Generated PDFs
+└── README.md
+```
 
 ---
 
@@ -103,27 +144,18 @@ Each script asks: `Drop and recreate? (yes/no)`
 
 ---
 
-## ⌨️ Commands
-
-```bash
-# Docker
-docker-compose up -d      # Start all services
-docker-compose down      # Stop all services
-
-# Database
-python initDB.py         # Initialize both
-python initPost.py       # PostgreSQL only
-python initMongo.py      # MongoDB only
-
-# Server
-python -m uvicorn PDFserver:app --port 8001  # Run server
-```
-
----
-
 ## 📋 Requirements
 
 - Python 3.11+
 - Docker & Docker Compose
-- PostgreSQL (via Docker)
-- MongoDB (via Docker)
+- PostgreSQL, MongoDB, n8n (via Docker)
+
+---
+
+## 🔧 Configuration
+
+Edit `.env` file:
+```env
+POSTGRES_PASSWORD=your_password
+WEBHOOK_URL=https://your-ngrok-url.ngrok-free.dev
+```

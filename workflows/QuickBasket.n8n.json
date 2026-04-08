@@ -1,0 +1,865 @@
+{
+  "name": "N8N QuickBasket",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Message_received').item.json.message }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are QuickBasket store helper. Help customers buy snacks and ice creams.\n\nReturn ONLY valid JSON. No extra text outside JSON.\n\n---\n\n# Products (use exactly these names, lowercase)\n\nbanana chips, black currant icecream, butterscotch icecream, chocolate chip icecream, chocolate icecream, cookies and cream, good day biscuits, kulfi icecream, kurkure, lays classic, mango icecream, marie gold biscuits, namkeen mixture, pista icecream, popcorn ready pack, potato chips, roasted peanuts, salted cashews small pack, strawberry icecream, vanilla icecream\n\n---\n\n# JSON Output Format\n\n{\n  \"reply\": \"your message\",\n  \"intent\": \"add or remove or confirm or noaction\",\n  \"items\": {\"product name\": quantity}\n}\n\n---\n\n# Intent (ONLY use these values)\n\n- \"add\" = customer wants to buy\n- \"remove\" = customer wants to remove from order\n- \"confirm\" = customer confirms to place order\n- \"noaction\" = no action needed or unclear request\n\nDO NOT use any other intent values.\n\n---\n\n# Items Format\n\nFor ADD: \"items\": {\"product name\": quantity to add}\nFor REMOVE: \"items\": {\"product name\": quantity to remove}\n\nExample: {\"reply\": \"Added lays classic x2\", \"intent\": \"add\", \"items\": {\"lays classic\": 2}}\n\n---\n\n# Rules (STRICT)\n\n1. Always use field name \"items\"\n2. Always use \"intent\" with value \"add\" or \"remove\" or \"confirm\" or \"noaction\"\n3. For add: items = what customer wants to buy\n4. For remove: items = what and how many to remove\n5. For noaction: items = {} (empty) - when nothing to do or unclear\n5. Match product names exactly from the list above\n6. Convert all input to lowercase before matching\n7. Keep reply short\n8. Always include all 3 fields: reply, intent, items\n\n---\n\n# Examples\n\nCustomer: \"lays classic 2\"\nReturn: {\"reply\": \"Added lays classic x2 = Rs 40\", \"intent\": \"add\", \"items\": {\"lays classic\": 2}}\n\nCustomer: \"remove potato chips 1\"\nReturn: {\"reply\": \"Removed potato chips x1\", \"intent\": \"remove\", \"items\": {\"potato chips\": 1}}\n\nCustomer: \"confirm order\"\n- FETCH from database temporary_order table\n- Get all items with quantities and prices\n- Calculate total from price_item column\n- Return order summary\n- Intent: \"confirm\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -784,
+        192
+      ],
+      "id": "51c18649-9b2c-4576-9f95-c38bb16c7c31",
+      "name": "AI Agent",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Message_received').item.json.message }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -688,
+        416
+      ],
+      "id": "74c42868-6480-4c43-9083-e283788943ee",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1088454514345844",
+        "recipientPhoneNumber": "={{ $node[\"WhatsApp Trigger\"].json.messages[0].from }}",
+        "textBody": "={{ $json.raw.reply }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a16e38b3-df2f-40d0-a2d1-b9923cd3a31b",
+      "name": "response to the message",
+      "webhookId": "319c912b-1490-4467-ad63-8a0829f96596",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "I4QosI4ZV3tAzNia",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "ministral-8b-latest",
+        "options": {
+          "maxRetries": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        416
+      ],
+      "id": "bb6298dc-c670-4cbb-81b4-13918cb5afa5",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "fAvRw9DfHmVn3lsS",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1392,
+        288
+      ],
+      "id": "6fce5428-9ef8-4319-8584-f8106891d9dd",
+      "name": "When chat message received",
+      "webhookId": "bf7fc022-a25f-47da-8b7a-1726c16877a5"
+    },
+    {
+      "parameters": {
+        "jsCode": "let input = $input.first().json;\n\nlet message = \"\";\n\n// Prefer chatInput if available\nif (input.chatInput) {\n    message = input.chatInput;\n}\n// Otherwise fallback to WhatsApp message\nelse if (input.messages?.[0]?.text?.body) {\n    message = input.messages[0].text.body;\n}\n\nreturn [\n  {\n    json: {\n      message\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1168,
+        192
+      ],
+      "id": "ff5f2b3c-18cd-4662-9192-51b43cfca7ed",
+      "name": "Message_received"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        416
+      ],
+      "id": "086a4091-76c4-49a9-99f0-a96a7d1bc61c",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "kBS5YjTBJjjwLfRY",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Intent').item.json.intent }}",
+                    "rightValue": "add",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9e00496d-c162-4309-8666-b35ae4a67ef8"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "order_add"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "32e9e3ee-9a75-4b73-afdc-529a1fa0f2a0",
+                    "leftValue": "={{ $('Intent').item.json.intent }}",
+                    "rightValue": "remove",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "order_remove"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a2441925-b4d9-4dff-8d8c-25cc9ee56a5c",
+                    "leftValue": "={{ $('Intent').item.json.intent }}",
+                    "rightValue": "confirm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirm"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        176
+      ],
+      "id": "c9518d73-9682-4e32-8406-492d0fe1c221",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const intent = $('Raw data').first().json.raw.intent\n\nreturn [\n  {\n    json: {\n      intent\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "8b17ac49-c2a7-42ab-812e-0a0654e068d9",
+      "name": "Intent"
+    },
+    {
+      "parameters": {
+        "jsCode": "let ObjectItems = {};\n\nconst ObjectListis = $json.ObjectListis;\n\nif (!ObjectListis || ObjectListis === \"new\") {\n  const allItems = $('Raw data').all();\n\n  for (const item of allItems) {\n    const orderItems = item.json?.raw?.items || {};\n\n    for (const [name, quantity] of Object.entries(orderItems)) {\n      ObjectItems[name] = (ObjectItems[name] || 0) + quantity;\n    }\n  }\n\n} else {\n  ObjectItems = $json.ObjectItems || {};\n}\n\nconst items = Object.entries(ObjectItems).map(([name, quantity]) => ({\n  [name]: quantity\n}));\n\nreturn [\n  {\n    json: {\n      items\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "92799f56-438f-40d8-827a-a6924b5a652d",
+      "name": "initialising_variables"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1088454514345844",
+        "recipientPhoneNumber": "={{ $node[\"WhatsApp Trigger\"].json.messages[0].from }}",
+        "messageType": "document",
+        "mediaPath": "useMedian8n",
+        "additionalFields": {
+          "mediaFilename": "QuickBasket_Order.pdf"
+        }
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        288
+      ],
+      "id": "e1a4598a-ca2d-46de-b8ff-895124d0fb30",
+      "name": "send final bill on whatsapp",
+      "webhookId": "319c912b-1490-4467-ad63-8a0829f96596",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "I4QosI4ZV3tAzNia",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "chat_logs",
+        "fields": "raw,message,intent,reply",
+        "options": {
+          "useDotNotation": true
+        }
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        384
+      ],
+      "id": "859c6a39-6bc5-4b00-8f69-0dea32705839",
+      "name": "mongo logs",
+      "credentials": {
+        "mongoDb": {
+          "id": "E8mrDGZGlJsq0Q1Y",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO temp_orders (item_name, total_quantity)\nSELECT \n    j.key,\n    j.value::int\nFROM jsonb_array_elements(\n'{{ JSON.stringify($json.items || []) }}'::jsonb\n) arr\nCROSS JOIN jsonb_each(arr) AS j(key, value)\n\nON CONFLICT (item_name)\nDO UPDATE \nSET total_quantity = public.temp_orders.total_quantity + EXCLUDED.total_quantity;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        0
+      ],
+      "id": "a6b512df-5532-4e07-a12a-2cc2e06a5d0b",
+      "name": "add items",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO temp_orders (item_name, total_quantity)\nSELECT \n    j.key,\n    - (j.value::int)\nFROM jsonb_array_elements(\n'{{ JSON.stringify($json.items || []) }}'::jsonb\n) arr\nCROSS JOIN jsonb_each(arr) AS j(key, value)\n\nON CONFLICT (item_name)\nDO UPDATE \nSET total_quantity = temp_orders.total_quantity + EXCLUDED.total_quantity;\n\nDELETE FROM temp_orders\nWHERE total_quantity <= 0;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        192
+      ],
+      "id": "c47b98da-0306-4558-b332-86c76b41e160",
+      "name": "remove items",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = $input.first().json.output || \"\";\n\nif (typeof output !== \"string\") {\n  output = JSON.stringify(output);\n}\n\n// Remove markdown + unwanted characters\noutput = output\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .replace(/^[^\\{]*/, '')\n  .replace(/[^\\}]*$/, '')\n  .replace(/[\\u0000-\\u001F]+/g, '') // remove control characters\n  .trim();\n\nconst data = JSON.parse(output);\n\nconst record = {\n  raw: data,\n  message: $('Message_received').first().json.message,\n  timestamp: new Date()\n};\n\nreturn [\n  {\n    json: record\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        192
+      ],
+      "id": "29cdce8e-fe40-4267-a7df-3e966d9d5354",
+      "name": "Raw data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": " TRUNCATE TABLE temp_orders;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1568,
+        288
+      ],
+      "id": "72df2342-10da-4b4e-a54c-ef2ac088f489",
+      "name": "truncate to reset",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "products",
+          "mode": "list",
+          "cachedResultName": "products"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        416
+      ],
+      "id": "9058e7e4-7e5e-4c2f-8d4b-7563abfa81e6",
+      "name": "products",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "temp_orders",
+          "mode": "list",
+          "cachedResultName": "temp_orders"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -432,
+        416
+      ],
+      "id": "95f3ac3b-78d9-4312-bc11-3cbfd4c34bac",
+      "name": "temp orders",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    t.item_name,\n    t.total_quantity,\n    COALESCE(p.price,0) as price,\n    (t.total_quantity * COALESCE(p.price,0)) AS total_price\nFROM temp_orders t\nLEFT JOIN products p \nON LOWER(t.item_name) = LOWER(p.name);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        384
+      ],
+      "id": "8b693760-4d97-439a-b8b3-4f4d1a0dd02c",
+      "name": "ADD PRICES",
+      "credentials": {
+        "postgres": {
+          "id": "l5phPZdWMV32pk3q",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nlet grand_total = 0;\n\nconst items = rows.map(i => {\n  const price = i.json.price;\n  const qty = i.json.total_quantity;\n  const total = i.json.total_price;\n\n  grand_total += total;\n\n  return {\n    \"Product\": i.json.item_name,\n    \"Quantity\": qty,\n    \"Unit Price\": `INR ${price}`,\n    \"Total\": `INR ${price} × ${qty}  (INR ${total})`\n  };\n});\n\nreturn [\n  {\n    json: {\n      items,\n      \"Grand Total\": `INR ${grand_total}`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        384
+      ],
+      "id": "3750c4a3-bb37-4d13-9525-8c821b9491a7",
+      "name": "format Table"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/generate-pdf",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1120,
+        288
+      ],
+      "id": "fca79f2c-dc04-4200-a646-78b984918627",
+      "name": "PDF REQUEST "
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "orders_logs",
+        "fields": "=items,total",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        480
+      ],
+      "id": "661be2f6-73fe-4ead-b1aa-cb4ab753a33a",
+      "name": "Insert documents",
+      "credentials": {
+        "mongoDb": {
+          "id": "E8mrDGZGlJsq0Q1Y",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2fa2cb40-e8b3-453c-9d53-9fa6d0ddef90",
+              "name": "items",
+              "value": "={{ $json.items }}",
+              "type": "array"
+            },
+            {
+              "id": "8e620680-2116-4e45-8e83-51cb4ae5135b",
+              "name": "total",
+              "value": "={{ $json['Grand Total'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        480
+      ],
+      "id": "6e84e014-9e33-43b4-91cd-9203ea9a3997",
+      "name": "Input OrderLogs"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1b31a751-3f2f-4b69-80a6-0c7ae1316a61",
+              "name": "raw",
+              "value": "={{ $json.raw }}",
+              "type": "object"
+            },
+            {
+              "id": "06f6ba06-1913-40ef-9e23-9a1ecd1d0ee3",
+              "name": "message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "69cd828a-b39d-4ad8-908f-3239b0e87f14",
+              "name": "reply",
+              "value": "={{ $json.raw.reply }}",
+              "type": "string"
+            },
+            {
+              "id": "7a1ee76f-d5c9-4f3a-bb11-415b61a8dde0",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        384
+      ],
+      "id": "c264c8bc-37da-4caf-9fbb-deba8ed21ecd",
+      "name": "Input ChatLogs"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        96
+      ],
+      "id": "7c1eeb04-8396-41f9-87bc-f02713bf83ee",
+      "name": "WhatsApp Trigger",
+      "webhookId": "1659fe4f-a093-45b2-96a9-731e3dc1169f",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "oH5ZBUL9TzYsM3p2",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Raw data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Message_received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message_received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "add items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "remove items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ADD PRICES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent": {
+      "main": [
+        [
+          {
+            "node": "initialising_variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initialising_variables": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raw data": {
+      "main": [
+        [
+          {
+            "node": "Input ChatLogs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "response to the message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "products": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "temp orders": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ADD PRICES": {
+      "main": [
+        [
+          {
+            "node": "format Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format Table": {
+      "main": [
+        [
+          {
+            "node": "PDF REQUEST ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Input OrderLogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF REQUEST ": {
+      "main": [
+        [
+          {
+            "node": "send final bill on whatsapp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input OrderLogs": {
+      "main": [
+        [
+          {
+            "node": "Insert documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input ChatLogs": {
+      "main": [
+        [
+          {
+            "node": "mongo logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send final bill on whatsapp": {
+      "main": [
+        [
+          {
+            "node": "truncate to reset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message_received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a0c4989a-9eba-4270-85a8-987fa681d0ce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3845813bac64a2b5646a4b811ddbd4407bd4509b9ee373b7a8bd6fb70bde48dc"
+  },
+  "id": "PFHrkM5YTLQRFSWc",
+  "tags": []
+}
