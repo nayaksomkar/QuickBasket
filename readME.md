@@ -143,7 +143,7 @@ FastAPI, uvicorn, PostgreSQL, MongoDB, n8n (LangChain AI), ReportLab, Docker
 
 ## Products
 
-20 products: snacks & ice creams. See products.csv
+20 products: snacks & ice creams. See [products.csv](products.csv)
 
 ---
 
